@@ -1,0 +1,385 @@
+var epzCommonChooseOrganization = (function (import_epzCommonConfig) {
+
+    var mod = {};
+    mod.noPlace=false;
+    var listPlaceOfSearch = [];
+
+    var listenersMap = [];
+
+
+
+    $(function () {
+        $.validator.addMethod("chooseOrganization",
+            function (value, element) {
+                if (!value || value === $(element).attr('title')) {
+                    return true;
+                }
+
+                var id = $(element).attr('id');
+                var emptyFields = 0;
+                if (!$("#" + id + "Cpz").val()) emptyFields++;
+                if (!$("#" + id + "Fz94Id").val()) emptyFields++;
+                if (!$("#" + id + "Fz223Id").val()) emptyFields++;
+                if (!$("#" + id + "Inn").val()) emptyFields++;
+                return emptyFields != 4;
+            }, "Значение должно быть выбрано из справочника");
+    });
+
+    mod.organizationSelected = function (name, parentFieldName, cpz, idFz94, idFz223, inn, draftId) {
+        $("#" + parentFieldName).val(name);
+        $("#" + parentFieldName).keyup();
+        $("#" + parentFieldName + "Cpz").val(cpz);
+        $("#" + parentFieldName + "Fz94Id").val(idFz94);
+        $("#" + parentFieldName + "Fz223Id").val(idFz223);
+        $("#" + parentFieldName + "Inn").val(inn);
+        $("#" + parentFieldName + "DraftId").val(draftId);
+
+        // При выборе менять цвет поля
+        $("#" + parentFieldName).css("color", "#5b5b5b");
+
+        var newValue = {
+            fz223id: idFz223,
+            fz94id: idFz94,
+            cpz: cpz,
+            blocked: "blocked"
+        };
+
+        var selectListener = listenersMap[parentFieldName];
+        if (selectListener != undefined) {
+            selectListener.call(undefined, newValue);
+        }
+
+        validate(parentFieldName);
+    };
+
+    function validate(inputId) {
+        $('#' + inputId).valid();
+    }
+
+    function jq(myid) {
+        return "#" + myid.replace(/(:|\.|\[|\])/g, "\\$1");
+
+    }
+
+    function addPlaceOfSearchParam(params, placeOfSearchListFunc) {
+        if (placeOfSearchListFunc != undefined) {
+            var placeOfSearchList = placeOfSearchListFunc.call(undefined);
+            $.each(placeOfSearchList, function (index, value) {
+                params.push({
+                    name: 'placeOfSearch',
+                    value: value
+                });
+            });
+        }
+    }
+
+    function addSearchTextParam(params, inputId) {
+        var orgInput = $("#" + inputId);
+        var val = orgInput.val();
+        if (val && (orgInput.attr("title") != val)) {
+            params.push({
+                name: 'searchText',
+                value: val
+            });
+        }
+    }
+
+    function addOrgTypeParam(params, inputIdSelector) {
+        var val = $(inputIdSelector + "Params .organizationType").val();
+        params.push({
+            name: 'organizationType',
+            value: val
+        });
+    }
+
+    mod.initCommonChooseOrganization = function (inputId, placeOfSearch) {
+        doInitCommonChooseOrganizationByFunc(inputId, false, placeOfSearch, undefined, undefined, 'autocompleteReturnsCodes');
+    };
+
+    mod.initCommonChooseOrganizationWithSelectCallback = function (inputId, placeOfSearch, selectListener) {
+        doInitCommonChooseOrganizationByFunc(inputId, false, placeOfSearch, undefined, selectListener, 'autocompleteReturnsCodes');
+    };
+
+    mod.initCommonChooseOrganizationAutocomplete = function (inputId, placeOfSearch, autocompleteRecords) {
+        doInitCommonChooseOrganizationByFunc(inputId, false, placeOfSearch, undefined, undefined, 'autocompleteReturnsCodes', autocompleteRecords);
+    };
+
+    mod.initCommonChooseRegOrDraftOrganization = function (inputId, placeOfSearch) {
+        doInitCommonChooseOrganizationByFunc(inputId, false, placeOfSearch, undefined, undefined, 'autocompleteRegOrDraftReturnsCodes');
+    };
+
+    mod.initCommonChooseOrganizationByFunc = function (inputId, placeOfSearchListFunc, selectListener) {
+        doInitCommonChooseOrganizationByFunc(inputId, true, undefined, placeOfSearchListFunc, selectListener, 'autocompleteReturnsCodes');
+    };
+
+    mod.setListPlaceOfSearch = function (list) {
+        listPlaceOfSearch = list;
+    };
+
+    mod.setNoPlaceFlag=function (value) {
+        mod.noPlace=value;
+    }
+
+    mod.getNoPlaceFlag=function () {
+        return mod.noPlace;
+    }
+
+    var doInitCommonChooseOrganizationByFunc = function (inputId, useFunc, placeOfSearch, placeOfSearchListFunc, selectListener, mapping, autocompleteRecords) {
+        if (selectListener != undefined) {
+            listenersMap[inputId] = selectListener;
+        }
+
+        $("a#" + inputId + "Link").click(function (event) {
+            event.preventDefault();
+            if ($(this).is('#approvalLink') && $(this).hasClass('disabledBtn')) {
+                return;
+            }
+            var url = $("a#" + inputId + "Link").attr("href");
+            var params = [];
+            if (useFunc) {
+                addPlaceOfSearchParam(params, placeOfSearchListFunc);
+            } else {
+                params.push({
+                    name: 'placeOfSearch',
+                    value: listPlaceOfSearch.length > 0 ? listPlaceOfSearch : placeOfSearch
+                });
+            }
+            addSearchTextParam(params, inputId);
+            url += "&" + $.param(params);
+            openPopupDialog(url, true, "okdpPopUp");
+        });
+
+        if (useFunc) {
+            mod.initOrganizationAutocompleteById("#" + inputId, undefined, true, selectListener, placeOfSearchListFunc, mapping);
+        } else {
+            var func = function () {
+                if (listPlaceOfSearch.length > 0) {
+                    return listPlaceOfSearch
+                } else {
+                    return [placeOfSearch];
+                }
+            };
+            var autocompleteSelectCallback = undefined;
+            if (selectListener != undefined) {
+                autocompleteSelectCallback = selectListener;
+            }
+            mod.initOrganizationAutocompleteById("#" + inputId, undefined, true, autocompleteSelectCallback, func, mapping, autocompleteRecords);
+        }
+
+        $("#" + inputId).change(function (eventObject) {
+            if (ifOrganizationInputNotCorrect("#" + inputId)) {
+                clearOrganizationHiddenFields(inputId);
+            }
+        });
+    };
+
+    mod.initOrganizationAutocompleteById = function (id, requestParams, isUseAlikeLinkName, selectListener, placeOfSearchListFunc, mapping, autocompleteRecords) {
+        var isEnable = import_epzCommonConfig.smartSearchEnable;
+        $(id).autocomplete({
+            source: function (req, resp) {
+                var trimLength = $.trim(req.term.replace(/\s/g, '')).length;
+                if (trimLength < 3) {
+                    resp(null);
+                } else {
+                    var rp = requestParams;
+                    var dataParams = "term=" + encodeURIComponent(req.term);
+                    var url = import_epzCommonConfig.urls.epzOrganizationUrl + "chooseOrganization/" + mapping + ".html" + (rp ? "?" + rp : "");
+                    if (placeOfSearchListFunc != undefined) {
+                        var params = [];
+                        params.push({
+                            name: 'term',
+                            value: req.term
+                        });
+                        if (autocompleteRecords != undefined) {
+                            params.push({
+                                name: 'recordsPerPage',
+                                value: autocompleteRecords
+                            });
+                        }
+                        addPlaceOfSearchParam(params, placeOfSearchListFunc);
+                        addOrgTypeParam(params, id);
+                        dataParams = params;
+                        url = import_epzCommonConfig.urls.epzOrganizationUrl + "chooseOrganization/" + mapping + ".html";
+                    }
+                    var res = $.ajax({
+                        url: url,
+                        data: dataParams,
+                        type: "GET",
+                    }).done(function (ajaxResp) {
+                        var result = $.map(ajaxResp.result, function (item) {
+                                return {
+                                    value: item.name,
+                                    data: item
+                                }
+                            }
+                        );
+                        setTimeout(function () {
+                            resp(result)
+                        }, ajaxResp.delay);
+                    });
+
+                    // yandexCounterHit(url);
+                }
+            },
+            disabled: !isEnable,
+            minLength: 3,
+            open: function (event, ui) {
+                $("ul.ui-widget-content").addClass("popupAutocomplete");
+            },
+            select: function (event, ui) {
+//                var link = (isUseAlikeLinkName != undefined && isUseAlikeLinkName == true) ? $("#" + $(this).attr('id') + "Link") : $("#openChooseOrganizationLink");
+//                link.attr("href", link.attr("initialHref") + encodeURIComponent(ui.item.value));
+
+                var inputId = $(this).attr("id");
+
+                $("#" + inputId + "Fz223Id").attr("value", ui.item.data.fz223id);
+                $("#" + inputId + "Fz94Id").attr("value", ui.item.data.fz94id);
+                $("#" + inputId + "Cpz").attr("value", ui.item.data.cpz);
+                $("#" + inputId + "DraftId").attr("value", ui.item.data.draftId);
+
+                if (selectListener != undefined) {
+                    selectListener.call(undefined, ui.item.data);
+                }
+
+                validate(inputId);
+            },
+            search: function (event, ui) {
+                clearOrganizationHiddenFields($(this).attr("id"));
+            }
+        }).keypress(function() {
+            if(event.keyCode == 13){
+                $(event.target).autocomplete('search', $(event.target).val());
+            };
+        }).data("ui-autocomplete")._renderItem = function (ul, item) {
+            var fzTitle = "";
+            var isBlockedImg = "";
+            var labelW = 85;
+            var titleW = 10;
+            var doubleFZ = "";
+            if (item.data.blocked) {
+                isBlockedImg = "warningRed positionAbsolute top-10px";
+            }
+            if(!mod.getNoPlaceFlag()){
+                if (item.data.fz94id && item.data.fz223id) {
+                    fzTitle = "44-ФЗ 223-ФЗ";
+                    titleW += 10;
+                    labelW -= 10;
+                    doubleFZ = "double-fz";
+                } else if (item.data.fz94id) {
+                    fzTitle = "44-ФЗ";
+                } else if (item.data.fz223id) {
+                    fzTitle = "223-ФЗ";
+                }
+            }
+
+            return $("<li></li>")
+                .data("item.autocomplete", item)
+                .append($("<a/>", {class: "mainPage"})
+                    .append($("<span/>", {
+                        text: item.label,
+                        class: "inlineBlock ui-corner-all__title "+ doubleFZ,
+                        style: "width:" + String(labelW) + "%;vertical-align: middle;"
+                    }))
+                    .append($("<span/>", {
+                            class: item.data.blocked ? "mainPage w-5 inlineBlock ui-corner-all__blocked" : "mainPage w-5 inlineBlock"
+                        }).append($("<span/>", {
+
+                            class: isBlockedImg,
+                            title: item.data.blocked ? "Организация является заблокированной" : ""
+                        }))
+                    )
+                    .append($("<span/>", {
+                        text: fzTitle,
+                        class: "ui-corner-all__fz " + doubleFZ,
+                        style: "display:inline-block;width:" + String(titleW) + "%;text-align:right;color:#9c9d9e;vertical-align: middle;"
+                    }))
+                ).appendTo(ul);
+        };
+
+        $(id).keyup(function () {
+            var currentValue = $(this).val();
+            if (currentValue === '') {
+                $(".ui-autocomplete").hide();
+                clearOrganizationHiddenFields($(this).attr("id"));
+            }
+        });
+
+        $(id).keyup();
+
+        // когда клик в автокомплите - запоминаем
+        // если в blur этот флаг = истина, значит выбрали организацию
+        // иначе кликнули не на автокомплите
+        var autoCompleteClick = false;
+        $('.ui-autocomplete')
+            .mousedown(function () {
+                autoCompleteClick = true;
+            })
+            .mouseup(function () {
+                autoCompleteClick = false;
+            });
+        $(id).blur(function () {
+            if (!autoCompleteClick) {
+                $(this).valid();
+            }
+        });
+
+        $(window).resize(function () {
+            $(".ui-autocomplete").hide();
+        });
+    };
+
+    mod.clearOrganizationAutocomplete = function (isUseAlikeLinkName) {
+        if (isUseAlikeLinkName != undefined && isUseAlikeLinkName == true) {
+            $('input.organizationAutocomplete').each(function () {
+                var link = $("#" + $(this).attr('id') + "Link");
+                link.attr("href", link.attr("initialHref"));
+            });
+        } else {
+            var chooseOrganizationLink = $("#openChooseOrganizationLink");
+            chooseOrganizationLink.attr("href", chooseOrganizationLink.attr("initialHref"));
+        }
+    };
+
+    mod.clearOrganizationFields = function (inputName) {
+        clearOrganizationHiddenFields(inputName);
+        $("#" + inputName).val('');
+        $("#" + inputName + "Fz223Id").change();
+        if(typeof showHints === 'function') {
+            showHints();
+        }
+        validate(inputName);
+    };
+
+    mod.resetOrganizationFields = function (inputName) {
+        // Предыдущие значения полей [inputName+"Cpz", inputName+"Fz94Id", inputName+"Fz223Id", inputName, inputName+"Inn"]
+        // в новом дизайне сбрасывать не нужно, т.к. они всегда инициализируются новыми значениями из урла
+        $("#" + inputName + "Fz223Id").change();
+        validate(inputName);
+    };
+
+    mod.updateOrganizationOnChangeLaw = function (inputName) {
+        mod.resetOrganizationFields(inputName);
+    };
+
+    function isEmpty(str) {
+        return (!str || 0 === str.length);
+    }
+
+    function isFz94(placeOfSearchList) {
+        return isFz(placeOfSearchList, 'FZ_94');
+    }
+
+    function isFz44(placeOfSearchList) {
+        return isFz(placeOfSearchList, 'FZ_44');
+    }
+
+    function isFz223(placeOfSearchList) {
+        return isFz(placeOfSearchList, 'FZ_223');
+    }
+
+    function isFz(placeOfSearchList, fzType) {
+        return $.inArray(fzType, placeOfSearchList) >= 0;
+    }
+
+    return mod;
+}(epzCommonConfig));
