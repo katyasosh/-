@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style/styles.css">
+
+  <title>Бот-помощник</title>
+</head>
+<body>
+  <div class="chat-container">
+    <div class="bot-container">
+      <img src="./svg/bot.svg" alt="Изображение бота">
+    </div>
+    <div class="chat-data-container">
+      <div class="chat-messages" id="chat-messages"></div>
+      <div class="chat-input">
+        <input type="text" id="user-input" placeholder="Введите запрос...">
+        <div class="button-container">
+          <button class="send-button">Отправить</button>
+          <button class="clear-button">Очистить</button>
+        </div>
+      </div>
+    </div>
+    
+  </div>
+  <script type="module" src="scripts/script.js"></script>
+</body>
+</html>
