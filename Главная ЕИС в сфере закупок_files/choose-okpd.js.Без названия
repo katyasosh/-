@@ -1,0 +1,362 @@
+var epzCommonChooseOkpd = (function (import_epzCommonConfig) {
+    function chooser(urlPart, notNsi) {
+        var _dataContainerId;
+        var _inputId;
+        var _inputName;
+
+        var old = new Object();
+        /**
+         *
+         * @param selKeys
+         * @param isTree if isTree undefined, then is flat selection, else is tree selection, and isTree maybe true or
+         * false when is checked or unchecked checkbox.
+         * @param hideCode
+         */
+        var add = function (selKeys, isTree, hideCode) {
+            var htmlContent = '';
+            var itemCount = 0;
+            if (isTree === undefined) {
+                $.map(selKeys, function (a) {
+                    delete old[a.id];
+                    htmlContent += itemContent(a, a.id, itemCount, hideCode);
+                    itemCount++;
+                });
+                $.map(old, function (a,id) {
+                    if (a !== undefined && a !== null && a.name !== undefined && id !== undefined)
+                        htmlContent += itemContent(a, id, itemCount, hideCode);
+                        itemCount++;
+                });
+            } else {
+                old = new Object();
+                $('[id^="' + _inputId + '_"]').each(function () {
+                    var idArr = $(this).prop('id').split('_');
+                    var nameArr = $(this).text().split(':');
+                    var code = $(this).find(".itemCode").text();
+                    old[idArr[1]] = {
+                        code: code.replace(/:/, ''),
+                        name: nameArr[1]
+                    };
+                });
+                $.map(selKeys, function (a) {
+                    if (!isTree) {
+                        $.map(old, function (o, id) {
+                            if (parseInt(id) === a.id) {
+                                delete old[id];
+                            }
+                        });
+                    }
+                    htmlContent += itemContent(a, a.id, itemCount, false);
+                    itemCount++;
+                });
+            }
+            if (selKeys) {
+                var moreCount = selKeys.length - 4;
+                htmlContent += selKeys.length > 4 ? ('<a class="cursorPointer toggleMoreItem' + _inputId + ' show" count="' + moreCount + '">Выбрано ещё ' + moreCount + '</a>') : '';
+                $('#' + _dataContainerId).html(htmlContent);
+                $('.toggleMoreItem' + _inputId).click(function (event) {
+                    if (typeof showMoreItem === 'function') {
+                        showMoreItem(event.currentTarget, _inputId);
+                    }
+                });
+            }
+            listOrgRemove(refreshHiddenValue);
+            refreshHiddenValue();
+        };
+
+        function itemContent(a, id, itemCount, hideCode){
+            var item = '<li id=' + _inputId + '_' + id + ' code=' + a.code + ' class="listOrg__item mt-3' + (itemCount > 3 ?  ' moreItem' + _inputId + ' displayNone' : "") + '">' +
+                        '<div class="d-flex justify-content-between">' +
+                            '<div>' + (hideCode === undefined || !hideCode ?
+                                '<div class="itemCode">' +
+                                (a.code ? (a.code + ':') : '') +
+                                '</div> ' : '') + a.name +
+                            '</div>' +
+                            '<span class="listOrg__remove-item" title="Удалить"></span>' +
+                        '</div>' +
+                    '</li>';
+           return item;
+        }
+
+        var addCode = function (selKeys) {
+            var htmlContent = '';
+            $.map(selKeys, function (a) {
+                htmlContent +=
+                    '<li id=' + _inputId + '_' + a.code + ' class="upperCase">' +
+                        '<span title="Удалить"></span>' +
+                        '<div class="itemCode">' + (a.code && a.code.indexOf('OKER')===-1 ? a.code + ': ' : '') + '</div>' + a.name +
+                    '</li>';
+            });
+
+            $('#' + _dataContainerId).html(htmlContent);
+            listOrgRemove(refreshHiddenValue);
+            refreshHiddenValue();
+        };
+
+        var addPpo = function (selKeys) {
+            add($.makeArray(selKeys));
+        };
+
+        function addNestedToQuery(inputId){
+            var withNested = $('#' + inputId + "WithNested");
+            if (withNested && withNested.length > 0) {
+                withNested = withNested.prop("checked");
+                return '&withNested=' + (withNested ? withNested : false);
+            } else {
+                return '';
+            }
+        }
+
+        var getUrlNsi = function() {
+            return (notNsi ? '' : import_epzCommonConfig.urls.epzNsiUrl) + urlPart;
+        };
+
+        var urlConcatenation = function (callback,selectedCallback) {
+            var url =  getUrlNsi() +
+                        '?insertCallback=' + callback +
+                        '&selectedCallback=' + selectedCallback;
+            return url;
+        };
+
+        var init = function (linkId, inputId, dataContainerId, callback, selectedCallback, hideCheckbox, headerTitle) {
+            if($('#'+linkId).is('[data-modalup]')) {
+                _dataContainerId = dataContainerId;
+                _inputId = inputId;
+                listOrgRemove(refreshHiddenValue);
+
+                window[linkId + "_callBack"] = function () {
+                    var url = '';
+                    url = (notNsi ? '' : import_epzCommonConfig.urls.epzNsiUrl) +
+                            '{0}?insertCallback={1}&selectedCallback={2}&selectedIds={3}{4}&hideCheckbox={5}'
+                                .format(urlPart, callback, selectedCallback, $('#' + inputId)
+                                    .val(), addNestedToQuery(inputId), (hideCheckbox ? hideCheckbox : false));
+                    $("a#" + linkId).attr('href', url);
+                };
+                $("a#" + linkId).attr('data-modal-before-open-function', linkId + '_callBack');
+                window[linkId + "_callBack"]();
+            }else{
+                _init(linkId, inputId, dataContainerId, function (event) {
+                    event.preventDefault();
+                    var url = urlConcatenation(callback,selectedCallback) +
+                                '&selectedIds=' + $('#' + inputId).val();
+                    openPopupDialog(url, true, "okdpPopUp");
+                });
+            }
+        };
+
+        var initWorktype = function (linkId, inputId, inputName, dataContainerId, callback, selectedCallback) {
+            _inputName = inputName;
+            _init(linkId, inputId, dataContainerId, function (event) {
+                event.preventDefault();
+                var url = urlConcatenation(callback,selectedCallback) +
+                            '&selectedIds=' + $('#' + inputId).val() +
+                            '&selectedParentIds=' + $('#' + inputId + 'Parent').val() + addNestedToQuery(inputId);
+                openPopupDialog(url, true, "okdpPopUp");
+            });
+        };
+
+        var initDosage = function (linkId, inputId, dataContainerId, callback, selectedCallback, farmCatalogType) {
+            _init(linkId, inputId, dataContainerId, function (event) {
+                event.preventDefault();
+                var url = "/epz/farm/" + urlPart +
+                            '?inputId=' + farmCatalogType +
+                            '&insertCallback=' + callback +
+                            '&selectedCallback=' + selectedCallback;
+                openPopupDialog(url, true, "okdpPopUp");
+            });
+        };
+
+        var initRootOnly = function (linkId, inputId, dataContainerId, callback, selectedCallback) {
+            _init(linkId, inputId, dataContainerId, function (event) {
+                event.preventDefault();
+                var url = urlConcatenation(callback,selectedCallback) +
+                            '&root=true';
+                openPopupDialog(url, true, "okdpPopUp");
+            });
+        };
+
+        var initRootOnlyAndHideCheckbox = function (linkId, inputId, dataContainerId, callback, selectedCallback) {
+            _init(linkId, inputId, dataContainerId, function (event) {
+                event.preventDefault();
+                var url = urlConcatenation(callback,selectedCallback) +
+                            '&root=true&hideCheckbox=true';
+                openPopupDialog(url, true, "okdpPopUp");
+            });
+        };
+
+        var initOkdpWithGroups = function (linkId, inputId, dataContainerId, callback, selectedCallback, okdpGroupInputId) {
+            _init(linkId, inputId, dataContainerId, function (event) {
+                event.preventDefault();
+                var url = urlConcatenation(callback,selectedCallback) +
+                            "&okdpGroupIds=" + $("#" + okdpGroupInputId).val();
+                openPopupDialog(url, true, "okdpPopUp");
+            });
+        };
+
+        var initWithGroups = function (linkId, inputId, dataContainerId, callback, selectedCallback, groupInputIds) {
+            _init(linkId, inputId, dataContainerId, function (event) {
+                event.preventDefault();
+                var url = urlConcatenation(callback,selectedCallback) +
+                            "&oktmoRegionIds=" + $("#" + groupInputIds).val();
+                openPopupDialog(url, true, "okdpPopUp");
+            });
+        };
+
+        var initWithGroupsAndHideCheckBox = function (linkId, inputId, dataContainerId, callback, selectedCallback, groupInputIds) {
+            _init(linkId, inputId, dataContainerId, function (event) {
+                event.preventDefault();
+                var url = urlConcatenation(callback,selectedCallback) +
+                            "&oktmoRegionIds=" + $("#" + groupInputIds).val() +
+                            "&hideCheckbox=true";
+                openPopupDialog(url, true, "okdpPopUp");
+            });
+        };
+
+        var initCustomerReason = function (linkId, inputId, dataContainerId, callback, selectedCallback, hideCheckbox, headerTitle) {
+            tempHidden = $('#'+inputId+'Codes').val();
+            _init(linkId, inputId, dataContainerId, function (event) {
+                event.preventDefault();
+                var url = getUrlNsi() +
+                            '?headerTitle='.concat(encodeURIComponent(headerTitle));
+                openPopupDialog(url, true, "okdpPopUp");
+            });
+        };
+
+        function _init(linkId, inputId, dataContainerId, openPopupCallback) {
+            _dataContainerId = dataContainerId;
+            _inputId = inputId;
+            listOrgRemove(refreshHiddenValue);
+            $("a#" + linkId).off("click");
+            $("a#" + linkId).click(openPopupCallback);
+        }
+
+        var getSelectedIds = function () {
+            var elems = $("#" + _dataContainerId + " li");
+            var arr = jQuery.makeArray(elems);
+            return $.map(arr, function (val, i) {
+                var id = $(val).attr('id').substring(_inputId.length + 1);
+                if(id !== '' && id.indexOf('_') === -1 )
+                    return id;
+                else
+                    return undefined;
+            });
+        };
+
+        var getSelectedItems = function () {
+            var elems = $("#" + _dataContainerId + " li:visible");
+            var arr = jQuery.makeArray(elems);
+            var result = new Object();
+             $.each(arr, function (key, val) {
+                var id = $(val).attr('id').substring(_inputId.length + 1);
+                var title = $(val).text();
+                if(id !== '' && id.indexOf('_') === -1 )
+                    result["item_" + id] = {id: id, title: title};
+            });
+            return result;
+        };
+
+        var getSelectedParentIds = function () {
+            var elems = $("#" + _dataContainerId + " li");
+            var arr = jQuery.makeArray(elems);
+            return $.map(arr, function (val, i) {
+                var id = $(val).attr('code');
+                if (id !== '' && id)
+                    return id;
+                else
+                    return undefined;
+            });
+        };
+
+        var getSelectedNames = function () {
+            var elems = $("#" + _dataContainerId + " li:visible");
+            var arr = jQuery.makeArray(elems);
+            return $.map(arr, function (val, i) {
+                var id = $(val).attr('id').substring(_inputId.length + 1);
+                var result = $(val).attr('custom_name');
+                if(result !== undefined && id.indexOf('_') !== -1)
+                    return result.substring(_inputName.length + 1);
+            });
+        };
+
+        var getSelectedCodes = function () {
+            var elems = $("#" + _dataContainerId + " li:visible");
+            var arr = jQuery.makeArray(elems);
+            return $.map(arr, function (val, i) {
+                var code = $(val).find(".itemCode").text();
+                return code.replace(/:/, '');
+            });
+        };
+
+        var refreshHiddenValue = function () {
+            var inputValue = getSelectedIds().join(',');
+            $("#" + _inputId).val(inputValue);
+            $("#" + _inputName).val(getSelectedNames().join('|'));
+            $("#" + _inputId + "Codes").val(getSelectedCodes().join(','));
+            $("#" + _inputId + "Parent").val(getSelectedParentIds().join(','));
+            if (inputValue.length === 0) {
+                $("#" + _inputId + "WithNested").prop("checked", false)
+            }
+        };
+        return {
+            add: add,
+            addCode: addCode,
+            addPpo: addPpo,
+            init: init,
+            getSelectedIds: getSelectedIds,
+            getSelectedItems: getSelectedItems,
+            getSelectedNames: getSelectedNames,
+            initOkdpWithGroups: initOkdpWithGroups,
+            initRootOnly: initRootOnly,
+            initRootOnlyAndHideCheckbox: initRootOnlyAndHideCheckbox,
+            initWithGroups: initWithGroups,
+            initWithGroupsAndHideCheckBox: initWithGroupsAndHideCheckBox,
+            initDosage: initDosage,
+            initWorktype: initWorktype,
+            initCustomerReason: initCustomerReason
+
+        };
+    }
+
+    return {
+        okpd: chooser('okpd/open.html'),
+        okpd2: chooser('okpd2/open.html'),
+        kladr: chooser('kladr/open.html'),
+        lotsokpd2: chooser('okpd2/open.html'),
+        okdp: chooser('okdp/open.html'),
+        lotsokdp: chooser('okdp/open.html'),
+        okved: chooser('okved/open.html'),
+        lotsokved: chooser('okved/open.html'),
+        okved2: chooser('okved2/open.html'),
+        lotsokved2: chooser('okved2/open.html'),
+        okdpGroup: chooser('okdp_group/open.html'),
+        ppo: chooser('ppo/open.html'),
+        ppoModal: chooser('ppo/openModal.html'),
+        ppo223: chooser('ppo223/open.html'),
+        ppoModal223: chooser('ppo223/openModal.html'),
+        oktmo: chooser('oktmo/open.html'),
+        oktmoRootOnly: chooser('oktmo/open.html'),
+        oktmoRootOnlyModal: chooser('oktmo/openModal.html'),
+        eventSubject: chooser('eventSubject/open.html'),
+        kvr: chooser('kvr/open.html'),
+        kvrModal: chooser('kvr/openModal.html'),
+        farmMedForm: chooser('chooseFarm/open.html'),
+        farmDosage: chooser('chooseFarm/open.html'),
+        worktype: chooser('worktype/open.html'),
+        oktmoModal: chooser('oktmo/openModal.html'),
+        kladrModal: chooser('kladr/openModal.html'),
+        kladrCustomerModal: chooser('kladr/openModal.html'),
+        kladrDeliveryModal: chooser('kladr/openModal.html'),
+        okpd2Modal: chooser('okpd2/openModal.html'),
+        okpdModal: chooser('okpd/openModal.html'),
+        okdpModal: chooser('okdp/openModal.html'),
+        okvedModal: chooser('okved/openModal.html'),
+        okved2Modal: chooser('okved2/openModal.html'),
+        okdpGroupModal: chooser('okdp_group/openModal.html'),
+        worktypeModal: chooser('worktype/openModal.html'),
+        countryRegModal: chooser('countryReg/openModal.html'),
+        worktypeModalOrder: chooser('/epz/order/extendedsearch/worktype/openModal.html', true),
+        worktypeModalCapitalRepairs: chooser('/epz/capitalrepairs/worktype/openModal.html', true),
+        worktypeModalRkpo: chooser('/epz/rkpo/worktype/openModal.html', true),
+        customerReason: chooser('singleCustomerReason/open.html'),
+        kladrCustomerThreeLevelModal: chooser('kladr/openModal.html')
+    }
+}(epzCommonConfig));
