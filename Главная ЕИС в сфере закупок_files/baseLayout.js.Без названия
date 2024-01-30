@@ -1,0 +1,83 @@
+$(document).ready(function() {
+    jQuery('.switchCarousel').jcarousel({
+        scroll: 1
+    });
+    if ($.cookie('usePoorVisionOption') == 'true' ){
+        $( ".resultItem" ).attr("title","Нажмите для удаления выбранного элемента");
+        $( ".resultItem" ).addClass("cleanClick")
+    }
+    // Указываем дейтпикеру что выводить все нужно на русском
+    $.datepicker.setDefaults($.datepicker.regional['ru']);
+    $(".datepicker_ru").datepicker({
+        dateFormat: 'dd.mm.yy',
+        onClose: function() {
+            if (this.value === $(this).data("lastValue") || this.value == '') {
+                var newValue = '';//this.title;
+                $(this).prop("value", newValue).css("color", "#999999");
+                $(this).data("lastValue", newValue);
+            }
+        }
+    });
+
+    $(".digital").numeric({ decimal : "," });
+    $(".numeric").numeric({ decimal: false, negative: false });
+    $(".hasDatepicker").not(".hint").mask("99.99.9999");
+
+    $(".datepicker_ru").focus(function() {
+        $(this).attr("autocomplete", "off");
+        if (this.value === $(this).data("lastValue") || this.value == '') {
+            $(this).prop("value", '').css("color", "#5b5b5b");
+        }
+    });
+
+    showHints();
+
+    $(".hint").not(".datepicker_ru").focus(function () {
+        if (this.value === this.title || this.value === $(this).data("lastValue") || this.value == '') {
+            $(this).prop("value", "").css("color", "#5b5b5b");
+        }
+    }).blur(function () {
+        var newValue = this.title;
+        if ($(this).prop('id') == "quickSearchForm_header_searchString" || $(this).prop('id') == "extendedSearchForm1_searchString") {
+            newValue = reduceTextByWidth($(this));
+        }
+        if (this.value === this.title || this.value === $(this).data("lastValue") || this.value == '') {
+            $(this).prop("value", newValue).css("color", "#999999");
+            $(this).data("lastValue", newValue);
+        }
+    });
+
+});
+
+$(window).resize(function() {
+    showHints();
+});
+
+function textWidth(text, element) {
+    var html_calc = $('<span>' + text + '</span>');
+    html_calc.css('font-size', element.css('font-size')).hide();
+    html_calc.prependTo('div.searchField');
+    var width = html_calc.width();
+    html_calc.remove();
+    return width;
+}
+
+function reduceTextByWidth(element) {
+    var str = element.prop("title");
+    var width = element.width();
+
+    if (textWidth(str, element) <= width) {
+        return str;
+    }
+    var size = str.length;
+    do {
+        size--;
+        str = str.substring(0, size);
+    } while (textWidth(str + '...', element) > width);
+
+    return str + '...';
+}
+
+$(document).on("wheel", "input[type=number]", function (e) {
+    $(this).blur();
+});
