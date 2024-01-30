@@ -1,0 +1,140 @@
+$(document).ready(function () {
+    startNavigation=mainPageStartNavigation;
+});
+
+
+function getBannersBlock(){
+    var container = $("div.bannersBlock");
+    var resultArray=componentsCollector(container);
+    return resultArray;
+}
+
+function getNewsBlock(){
+    var container = $("div.newsBlock:not(.tapeBannersBlock)");
+    var resultArray=componentsCollector(container);
+    return resultArray;
+}
+
+function getTapeBannersBlock(){
+    var container = $("div.tapeBannersBlock.newsBlock");
+    var resultArray=componentsCollector(container);
+    return resultArray;
+}
+
+function getInfoSuppliesBlock(){
+    var container = $("div.infoSuppliesBlock .displayTable .displayTableRow:first ");
+    var resultArray=componentsCollector(container);
+    var expandInfoSuppliesBlock=new ExpandInfoSuppliesBlocktElement($("#expandInfoSuppliesBlock")[0]);
+    resultArray.unshift(expandInfoSuppliesBlock);
+    return resultArray;
+}
+
+function getWidgetBlock(){
+    var curI=$('.handlerInnerHtmlWidget').find(".items-overflow.first-level").attr('data-cur');
+    var selector=".pageCarouselHandler.items-parent .items-lists .item.item-page-"+curI;
+    var container = $(selector);
+    var resultArray= null;
+    if (curI == undefined){
+        resultArray=componentsCollector($('.handlerInnerHtmlWidget'));
+    }else {
+        resultArray=componentsCollector(container);
+    }
+
+    return resultArray;
+}
+
+function mainPageStartNavigation() {
+    stopNavigation();
+    mainNavigationTrack = new FocusesElementsMap();
+
+    var _navMenuFunc = function(){
+        var _components=componentsMenuCollecor();
+        return _components.navMenuArray;
+    };
+    var _headerArrayFunc = function(){
+        return getHeaderElementsNew();
+    };
+    var _searchFormArrayFunc =function(){
+        return sortSection(getSearchFormElements(), "searchFormArray");
+    };
+
+    var _bannersBlockFunc =function(){
+        return getBannersBlock();
+    };
+
+    var _newsBlockFunc =function(){
+        return sortSection( getNewsBlock(),"newsBlock");
+    };
+
+    var _tapeBannersBlockFunc =function(){
+        return getTapeBannersBlock();
+    };
+    var _infoSuppliesBlockFunc =function(){
+        return getInfoSuppliesBlock();
+    };
+    var _widgetBlockFunc =function(){
+        return getWidgetBlock();
+    };
+
+    var _footerArrayFunc =function(){
+        return getFooterElementsNew();
+    };
+
+    if ($.cookie('usePoorVisionOption') == 'true') {
+        var _poorvisionControlsArrayFunc = function(){
+            return getPoorvisionSettitngsBlock();
+        };
+        mainNavigationTrack.addSection("poorControls", _poorvisionControlsArrayFunc);
+    }
+    mainNavigationTrack.addSection("header", _headerArrayFunc);
+    mainNavigationTrack.addSection("navigation", _navMenuFunc);
+    mainNavigationTrack.addSection("searchForm", _searchFormArrayFunc);
+    mainNavigationTrack.addSection("bannersBlock", _bannersBlockFunc);
+    mainNavigationTrack.addSection("newsBlock", _newsBlockFunc);
+    mainNavigationTrack.addSection("tapeBannersBlock", _tapeBannersBlockFunc);
+    mainNavigationTrack.addSection("infoSuppliesBlock", _infoSuppliesBlockFunc);
+    mainNavigationTrack.addSection("widgetBlock", _widgetBlockFunc);
+
+
+
+    mainNavigationTrack.addSection("footer", _footerArrayFunc);
+
+    var result=mainNavigationTrack.findElementPositionByItem(clicked_element);
+    if (result != null){
+        mainNavigationTrack.currentPosition.currentSectionName = result.sectionName;
+        mainNavigationTrack.currentPosition.positionInCurrentSection = result.position;
+        mainNavigationTrack.next();
+    } else {
+        mainNavigationTrack.currentPosition.currentSectionName = Object.keys(mainNavigationTrack.navigationBloksMap)[0];
+        mainNavigationTrack.currentPosition.positionInCurrentSection = 0;
+    }
+
+    mainNavigationTrack.getCurrentElement().setFocus();
+}
+
+
+
+
+function ExpandInfoSuppliesBlocktElement(/*element*/ item) {
+    AbstractNavElement.apply(this, arguments);
+
+    var _parentAction = this.action;
+    this.action = function (event,track) {
+        _parentAction.call(this,event,track);
+        $(":animated").promise().done(function () { //wait until all animaitons finished
+            var curSectionName = mainNavigationTrack.currentPosition.currentSectionName;
+            var currElement = mainNavigationTrack.getCurrentElement();
+
+            var reloadedSectionElements=mainNavigationTrack.blockNameToSelectorMapper[curSectionName];
+            mainNavigationTrack.addSection(curSectionName, reloadedSectionElements);
+            var newCurEl = mainNavigationTrack.findElementPositionInSection(curSectionName, currElement);
+            mainNavigationTrack.currentPosition.currentSectionName = curSectionName;
+            mainNavigationTrack.currentPosition.positionInCurrentSection = newCurEl;
+
+            var nextSectionName="widgetBlock";
+            var nextSectionElements=mainNavigationTrack.blockNameToSelectorMapper[nextSectionName];
+            mainNavigationTrack.addSection(nextSectionName, nextSectionElements);
+
+        });
+    }
+}
