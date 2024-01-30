@@ -1,0 +1,53 @@
+var epzCommonChooseHeadAgency = (function (import_epzCommonConfig) {
+    var dataContainer;
+    var headAgencyId;
+    var addHeadAgencyCallback = function(sel) {
+        $("#" + headAgencyId).val(sel.id);
+
+        var htmlContent = '<li id=' + sel.id + ' class="upperCase"><span title="Удалить"></span>' + sel.name + '</li>';
+        $('#' + dataContainer).html(htmlContent);
+        listOrgRemove(refreshHiddenValue);
+    };
+
+    var doInitCommonChooseHeadAgency = function(linkId, headAgencyIdElement, dataContainerElement, callback) {
+        dataContainer = dataContainerElement;
+        headAgencyId = headAgencyIdElement;
+        listOrgRemove(refreshHiddenValue);
+        $("a#" + linkId).click(function(event) {
+            event.preventDefault();
+            var url = import_epzCommonConfig.urls.epzOrganizationUrl + 'headagency/open.html?jsCallback=' + callback;
+            openPopupDialog(url, true, "okdpPopUp");
+        });
+    };
+
+    var doInitCommonChooseHeadAgencyModal = function(linkId, headAgencyIdElement, dataContainerElement, callback, rootsSelector) {
+        dataContainer = dataContainerElement;
+        headAgencyId = headAgencyIdElement;
+        listOrgRemove(refreshHiddenValue);
+        const selectedRoots = $('#' + rootsSelector).val();
+        var url = '{0}headagency/openModal.html?jsCallback={1}&headAgencySelectedRoots={2}'.format(import_epzCommonConfig.urls.epzOrganizationUrl,callback,selectedRoots);
+        $("a#" + linkId).attr('href', url);
+    };
+
+    var getSelectedIds = function () {
+        var elems = $("#" + dataContainer + " li:visible");
+        var arr = jQuery.makeArray(elems);
+        return $.map(arr, function (val, i) {
+            return $(val).attr('id').substring(headAgencyId.length + 1);
+        });
+    };
+
+    var refreshHiddenValue = function () {
+        var inputValue = getSelectedIds().join(',');
+        $("#" + headAgencyId).val(inputValue);
+        if (inputValue.length === 0) {
+            $("#" + headAgencyId + "WithNested").prop("checked", false)
+        }
+    };
+
+    return {
+        addHeadAgencyCallback: addHeadAgencyCallback,
+        doInitCommonChooseHeadAgency: doInitCommonChooseHeadAgency,
+        doInitCommonChooseHeadAgencyModal: doInitCommonChooseHeadAgencyModal
+    };
+}(epzCommonConfig));
