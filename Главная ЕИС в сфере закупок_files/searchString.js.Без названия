@@ -1,0 +1,164 @@
+$(document).ready(function() {
+    if ($('#strictEqual').prop('checked')) {
+        switchOffCheckBox($('#morphology'));
+    }
+    if ($('#morphology').prop('checked')) {
+        switchOffCheckBox($('#strictEqual'));
+    }
+    //Disable submit form via press Enter
+    $("#quickSearchForm_header_searchString").keypress(function(e) {
+        if (e.which == 13) {
+            e.preventDefault();
+            submitQuickSearchForm();
+        }
+    });
+    $('#form_morphology').val(true);
+
+    $(".searchBlockAll").on("setDefaultValues", function () {
+        if (!$("#morphology").prop("checked")) {
+            $("#morphology").click();
+        }
+        $('#searchString').val("");
+        if ($("#strictEqual").prop("checked")) {
+            $("#strictEqual").click();
+        }
+    });
+
+    setDataToLocalStorage(contextPath, $('#quickSearchForm_header').serialize());
+});
+function setTitle(id) {
+    switch (id) {
+        case 'order':
+            updatePlaceholder('Введите полностью или часть номера, наименования закупки, идентификационного кода закупки (ИКЗ), наименования или ИНН Заказчика');
+            setLink('extendedsearch/search.html','extendedsearch/results.html', id);
+            break;
+        case 'contract':
+            updatePlaceholder('Введите полностью или часть номера реестровой записи контракта, идентификационного кода закупки (ИКЗ), наименования Заказчика, номера контракта или предмета контракта');
+            setLink('search/search.html','search/results.html', id);
+            break;
+        case 'contractfz223':
+            updatePlaceholder('Введите наименование (номер) договора, наименование предмета договора, наименование или ИНН заказчика');
+            setLink('search/search.html','search/results.html', id);
+            break;
+        case 'purchaseplanfz44':
+            updatePlaceholder('Введите полностью или часть уникального номера плана закупок, идентификационного кода закупки (ИКЗ), наименования объекта закупки, наименования Заказчика, ИНН');
+            setLink('search/search.html','search/results.html', id);
+            break;
+        case 'orderplan':
+            updatePlaceholder('Введите полностью или часть номера плана, наименования предмета контракта или договора, наименования или ИНН Заказчика, идентификационного кода закупки (ИКЗ)');
+            setLink('search/search.html?fz44=on','search/results.html?fz44=on', id);
+            break;
+        case 'purchaseplanfz223':
+            updatePlaceholder('Введите полностью или часть номера плана, наименования предмета контракта или договора, наименования или ИНН Заказчика');
+            setLink('search/search.html?fz223=on','search/results.html?fz223=on', id);
+            break;
+        case 'oboz':
+            updatePlaceholder('Введите полностью или часть номера обязательного общественного обсуждения, номера позиции плана закупок, номера плана-графика, номера извещения об осуществлении закупки, идентификационного кода закупки (ИКЗ), наименования объекта закупки');
+            setLink('search/results.html','search/results.html', id);
+            break;
+        case 'organization':
+            updatePlaceholder('Введите полностью или часть наименования организации, ОГРН, ИНН');
+            setLink('search/search.html','search/results.html', id);
+            break;
+    }
+}
+
+function setLink(href,action, id) {
+    $('#quickSearchForm_header').attr('action', $('#'+id).data('link') + action);
+    $('#go-to-all-param').attr('href', $('#'+id).data('link') + href);
+}
+
+function updatePlaceholder(text) {
+    $('#quickSearchForm_header_searchString').prop('placeholder',text).prop('title', text);
+}
+
+function submitQuickSearchForm() {
+    deleteHints();
+    var valid = true;
+    if(typeof doCustomValidation === "function") {
+        valid = doCustomValidation();
+    }
+    var searchFormName = "#quickSearchForm_header";
+    if ($(searchFormName).valid() && valid) {
+        showPageloaderOnSubmit();
+        $("input[name='pageNumber']").val(1);
+        var attributeArray = $(searchFormName + " input, textarea");
+        $.each(attributeArray, function (index, attribute) {
+            if ($(attribute).val() === "") {
+                $(attribute).remove();
+            }
+            if($(attribute).val() !== "" && $(attribute).hasClass('js-digit-number')){
+                $(attribute).val($(attribute).val().replace(/\s+/g, ''));
+            }
+        });
+        $(searchFormName).attr("method", isMore4000());
+        $(searchFormName).submit();
+
+    } else {
+        showHints();
+    }
+}
+
+function morphologyClick(){
+    if ($('#morphology').prop('checked')){
+        switchOffCheckBox($('#strictEqual'));
+        $('#form_morphology').val(true);
+        $('#form_strictEqual').val(false);
+    } else {
+        $('#form_morphology').val(false);
+    }
+}
+
+function strictEqualClick(){
+    if ($('#strictEqual').prop('checked')){
+        switchOffCheckBox($('#morphology'));
+        $('#form_strictEqual').val(true);
+        $('#form_morphology').val(false);
+    } else {
+        $('#form_strictEqual').val(false);
+    }
+}
+
+function switchOffCheckBox(obj) {
+    $(obj).prop('checked',false);
+}
+
+function morphologyWrapperClick() {
+    if ($("#morphologyWrapper").children("input").is(":checked")) {
+        $("#morphologyWrapper").addClass("check");
+        switchOffCheckboxAndWrapper($("#strictEqualWrapper"));
+    } else {
+        $("#morphologyWrapper").removeClass("check");
+    }
+}
+
+function strictEqualWrapperClick() {
+    if ($("#strictEqualWrapper").children("input").is(":checked")) {
+        $("#strictEqualWrapper").addClass("check");
+        switchOffCheckboxAndWrapper($("#morphologyWrapper"));
+    } else {
+        $("#strictEqualWrapper").removeClass("check");
+    }
+}
+
+function switchOffCheckboxAndWrapper(obj) {
+    $(obj).children("input").prop("checked", false);
+    $(obj).removeClass("check");
+}
+
+function isMore4000() {
+    var qheader = $("#quickSearchForm_header");
+    if (qheader != null) {
+        return qheader.serialize().length > 4000 ? "POST" : "GET";
+    }
+}
+
+function setDataToLocalStorage(key, value) {
+    localStorage.setItem(key, value);
+    localStorage.setItem(key+"url", window.location.origin+window.location.pathname);
+}
+
+window.addEventListener("unload", function() {
+    localStorage.removeItem(contextPath);
+    localStorage.removeItem(contextPath+"url");
+});
